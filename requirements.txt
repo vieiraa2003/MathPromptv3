@@ -1,0 +1,5 @@
+transformers==4.40.0
+torch>=2.0.0
+gradio==4.28.3
+
+🔧 Esse arquivo garante que as versões sejam compatíveis e o app rode em qualquer máquina que usar pip install -r requirements.txt.

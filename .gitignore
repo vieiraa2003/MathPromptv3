@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.env
+*.venv
+.env
+.venv/
+env/
+venv/
+
+# PyTorch + Transformers cache
+*.bin
+*.pt
+*.pth
+.cache/
+transformers_cache/
+
+# Gradio
+gradio_cached_examples/
+
+# Sistema
+.DS_Store
+Thumbs.db
