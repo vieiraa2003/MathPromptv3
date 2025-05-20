@@ -22,8 +22,7 @@ Foi desenvolvido com **Hugging Face Transformers**, **Gradio** para interface e 
 1. Clone o repositório:
 
 ```bash
-git clone https://github.com/seu-usuario/seu-repositorio.git
-cd seu-repositorio
+https://github.com/vieiraa2003/MathPromptv3
 ```
 
 2. Instale as dependências:
