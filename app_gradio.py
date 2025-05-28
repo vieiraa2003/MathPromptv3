@@ -115,7 +115,7 @@ def avaliar_acuracia():
 
 # === INTERFACE COM GRADIO ===
 with gr.Blocks() as demo:
-    gr.Markdown("# 🧮 Conversor de Frases para Expressões Matemáticas")
+    gr.Markdown("# 🧮 Math Prompt")
 
     with gr.Row():
         entrada = gr.Textbox(label="Digite uma frase matemática (em português)")
