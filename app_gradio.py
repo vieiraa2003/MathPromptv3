@@ -1,9 +1,7 @@
-!pip install gradio
-!pip install transformers
-
 import gradio as gr
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
 import re
+import random
 
 # === DICIONÁRIO DE SINÔNIMOS PARA NORMALIZAÇÃO EM PORTUGUÊS ===
 sinonimos_operadores = {
@@ -76,41 +74,82 @@ def processar(frase):
     resultado = resolver_expressao(expressao)
     return expressao, resultado
 
-# === AVALIAÇÃO DE ACURÁCIA COM COMPARAÇÃO DE VALORES ===
-testes = [
-    ("o dobro de 8", "2 * 8"),
-    ("a soma de 2 mais 2", "2 + 2"),
-    ("a metade de 6", "6 / 2"),
-    ("a diferença entre 7 e 3", "7 - 3"),
-    ("3 vezes 4", "3 * 4"),
-    ("4 mais 4", "4 + 4"),
-    ("6 menos 2", "6 - 2"),
-    ("10 dividido por 2", "10 / 2"),
-    ("quanto é 9 menos 3", "9 - 3"),
-    ("qual o produto de 5 e 5", "5 * 5"),
-    ("qual a divisão de 8 por 4", "8 / 4")
-]
+# === GERAÇÃO DE TESTES ALEATÓRIOS ===
 
-def avaliar_acuracia():
+def gerar_teste_aleatorio():
+    operadores = {
+        "+": ["a soma de {} e {}", "quanto é {} mais {}", "adicione {} a {}", "{} mais {}"],
+        "-": ["a diferença entre {} e {}", "quanto é {} menos {}", "subtraia {} de {}", "{} menos {}"],
+        "*": ["o produto de {} e {}", "{} vezes {}", "multiplique {} por {}", "o triplo de {}", "o dobro de {}"],
+        "/": ["a divisão de {} por {}", "{} dividido por {}", "a metade de {}", "um terço de {}"]
+    }
+
+    op_simbolo = random.choice(list(operadores.keys()))
+    templates = operadores[op_simbolo]
+    template = random.choice(templates)
+
+    num1 = random.randint(1, 20)
+    num2 = random.randint(1, 20)
+
+    if "dobro de" in template:
+        frase = template.format(num1)
+        expressao = f"2 * {num1}"
+    elif "triplo de" in template:
+        frase = template.format(num1)
+        expressao = f"3 * {num1}"
+    elif "metade de" in template:
+        frase = template.format(num1)
+        expressao = f"{num1} / 2"
+    elif "terço de" in template:
+        # Para garantir que seja um número inteiro para o terço, podemos ajustar aqui ou aceitar float
+        # Por simplicidade, vamos permitir float no resultado.
+        frase = template.format(num1)
+        expressao = f"{num1} / 3"
+    elif op_simbolo == '/':
+        if num2 == 0:
+            num2 = random.randint(1, 20) # Garante que num2 não seja zero
+        # Opcional: Garanta que num1 seja múltiplo de num2 para divisões exatas
+        if num1 % num2 != 0:
+            num1 = num2 * random.randint(1, 5)
+            if num1 == 0: num1 = num2 # Evita 0 / X
+        frase = template.format(num1, num2)
+        expressao = f"{num1} {op_simbolo} {num2}"
+    else:
+        frase = template.format(num1, num2)
+        expressao = f"{num1} {op_simbolo} {num2}"
+
+    return (frase, expressao)
+
+# === AVALIAÇÃO DE ACURÁCIA COM COMPARAÇÃO DE VALORES ===
+
+def avaliar_acuracia_aleatoria(num_testes=20):
     acertos = 0
-    total = len(testes)
+    total = num_testes
     resultados = []
 
-    for entrada, esperado in testes:
+    testes_aleatorios = [gerar_teste_aleatorio() for _ in range(num_testes)]
+
+    for entrada, esperado in testes_aleatorios:
         frase_en = traduzir_para_ingles(entrada)
         gerado = texto_para_expressao(frase_en)
         esperado_formatado = esperado.replace(" ", "")
         gerado_formatado = gerado.replace(" ", "")
         try:
+            # Para comparação de floats, usar uma pequena tolerância pode ser melhor
+            # do que igualdade exata, especialmente para divisões.
+            # No entanto, para este caso, onde esperamos inteiros após as divisões forçadas,
+            # a igualdade exata geralmente funciona. Se precisar de floats, considere:
+            # abs(eval(esperado_formatado) - eval(gerado_formatado)) < 1e-9
             acertou = eval(esperado_formatado) == eval(gerado_formatado)
-        except:
+        except Exception as e:
             acertou = False
-        resultados.append(f"{entrada} => {gerado} ({'✅' if acertou else '❌'})")
+        resultados.append(f"'{entrada}' => '{gerado}' (Esperado: '{esperado}') ({'✅' if acertou else '❌'})")
         if acertou:
             acertos += 1
 
     acuracia = round((acertos / total) * 100, 2)
-    resumo = f"Acurácia: {acertos}/{total} = {acuracia}%\n\n" + "\n".join(resultados)
+    # Apenas alteramos a string de resumo para destacar a porcentagem
+    resumo = f"## Acurácia: {acertos}/{total} = **{acuracia}%**\n\n" + "\n".join(resultados)
     return resumo
 
 # === INTERFACE COM GRADIO ===
@@ -127,8 +166,11 @@ with gr.Blocks() as demo:
     botao.click(fn=processar, inputs=entrada, outputs=[expressao, resultado])
 
     with gr.Accordion("📊 Avaliar Acurácia", open=False):
-        botao_avaliar = gr.Button("Avaliar Acurácia do Modelo")
-        saida_avaliacao = gr.Textbox(lines=10, label="Relatório de Acurácia")
-        botao_avaliar.click(fn=avaliar_acuracia, outputs=saida_avaliacao)
+        gr.Markdown("Gera testes aleatórios para avaliar o desempenho do modelo.")
+        num_testes_input = gr.Slider(minimum=10, maximum=100, step=5, value=20, label="Número de Testes Aleatórios")
+        botao_avaliar = gr.Button("Avaliar Acurácia do Modelo (Aleatório)")
+        saida_avaliacao = gr.Textbox(lines=15, label="Relatório de Acurácia", interactive=False) # Adicionado interactive=False
+        
+        botao_avaliar.click(fn=avaliar_acuracia_aleatoria, inputs=num_testes_input, outputs=saida_avaliacao)
 
 demo.launch()
